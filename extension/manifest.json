@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Automation Bridge",
+  "version": "1.0.0",
+  "description": "Drives a target web app with trusted, CDP-level input and streams jobs from a WebSocket bridge.",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "debugger",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://target-app.example/*"
+  ],
+  "_host_permissions_note": "Replace 'https://target-app.example/*' with the origin(s) of the web app you want to automate. Use '<all_urls>' only if you truly need to run everywhere.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://target-app.example/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
