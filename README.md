@@ -1,6 +1,6 @@
 # Browser Automation Bridge
 
-A production-style **browser-automation stack** that drives a web app the way a
+A reference **browser-automation stack** that drives a web app the way a
 human would — with *trusted* OS-level input events — and orchestrates jobs
 across multiple workers reliably.
 
@@ -20,11 +20,10 @@ It has three parts:
 
 ## Why it's interesting
 
-Most "browser automation" uses synthetic DOM events (`element.click()`,
-dispatching `MouseEvent`). Modern web apps ignore or distrust those:
-`event.isTrusted === false`. This project instead uses the **same input channel a
-real user has** — the Chrome DevTools Protocol — so the app cannot tell the
-difference.
+Synthetic DOM events created with `dispatchEvent` have `event.isTrusted ===
+false`. This example uses the Chrome DevTools Protocol to dispatch input that
+arrives as trusted DOM events. Sites can still detect automation through other
+signals; this is not a bypass guarantee.
 
 ### Standout techniques (in `extension/`)
 
