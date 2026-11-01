@@ -123,11 +123,11 @@
   }
 
   /** POST result as multipart/form-data with field "file" */
-  async function postResult(url, blob, filename) {
+  async function postResult(url, blob, filename, token) {
     console.log(`${LOG} POST result ${url.substring(0, 60)} (${blob.size}b)`);
     const fd = new FormData();
     fd.append('file', blob, filename);
-    const r = await fetch(url, { method: 'POST', body: fd });
+    const r = await fetch(url, { method: 'POST', headers: { 'X-Job-Token': token }, body: fd });
     if (!r.ok) throw new Error(`POST result ${r.status}`);
     const j = await r.json();
     console.log(`${LOG} POST result ok:`, j);
@@ -141,7 +141,7 @@
       try {
         await fetch(job.error_url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Job-Token': job.callback_token },
           body: JSON.stringify({ error: String(error).substring(0, 500) })
         });
       } catch (e) { console.error(`${LOG} reportError HTTP failed`, e); }
@@ -324,7 +324,7 @@
     console.log(`${LOG} image ready ${img.src.substring(0, 60)}`);
 
     const blob = await fetchBlob(img.src);
-    await postResult(job.result_image_url, blob, `start_frame_${job.job_id}.png`);
+    await postResult(job.result_image_url, blob, `start_frame_${job.job_id}.png`, job.callback_token);
     console.log(`${LOG} === IMAGE #${job.job_id} DONE ===`);
     chrome.runtime.sendMessage({ type: 'JOB_DONE', job_id: job.job_id });
   }
@@ -446,7 +446,7 @@
       }
     }
 
-    await postResult(job.result_video_url, videoBlob, `video_${job.job_id}.mp4`);
+    await postResult(job.result_video_url, videoBlob, `video_${job.job_id}.mp4`, job.callback_token);
     console.log(`${LOG} === VIDEO #${job.job_id} DONE ===`);
     chrome.runtime.sendMessage({ type: 'JOB_DONE', job_id: job.job_id });
   }

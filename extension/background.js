@@ -2,11 +2,11 @@
 
 const VERSION = '1.0.0';
 
-/* Default bridge endpoint. Override the base URL and (optionally) the auth token
+/* Default bridge endpoint. Override the base URL and set the auth token
  * from chrome.storage.local:
  *   chrome.storage.local.set({ bridgeUrl: 'wss://localhost:8000/ws', bridgeToken: '<token>' })
- * No token is hardcoded. If a token is present it is appended as ?token=... */
-const DEFAULT_WS_URL = 'wss://localhost:8000/ws';
+ * No token is hardcoded. The token is appended as ?token=... */
+const DEFAULT_WS_URL = 'ws://localhost:8000/ws';
 
 /* URL pattern of the target web app tab that jobs are dispatched to.
  * Keep this in sync with the content_scripts match in manifest.json. */
@@ -21,12 +21,13 @@ let currentJob = null;
 async function resolveWsUrl() {
   const { bridgeUrl, bridgeToken } = await chrome.storage.local.get(['bridgeUrl', 'bridgeToken']);
   const base = bridgeUrl || DEFAULT_WS_URL;
-  return bridgeToken ? `${base}?token=${encodeURIComponent(bridgeToken)}` : base;
+  return bridgeToken ? `${base}?token=${encodeURIComponent(bridgeToken)}` : null;
 }
 
 async function connectWS() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
   const url = await resolveWsUrl();
+  if (!url) { console.warn('[bridge-bg] Set bridgeToken in chrome.storage.local'); return; }
   console.log('[bridge-bg] Connecting…');
   ws = new WebSocket(url);
 
@@ -246,7 +247,7 @@ async function reportErrorHTTP(job, error) {
   try {
     await fetch(job.error_url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Job-Token': job.callback_token },
       body: JSON.stringify({ error })
     });
   } catch (e) {

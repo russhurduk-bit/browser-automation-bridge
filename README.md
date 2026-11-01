@@ -107,9 +107,10 @@ finished artifact back to `result_*_url` or reports failure to `error_url`.
 cd server
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# optional shared secret:
-export BRIDGE_TOKEN=change-me
-uvicorn bridge:app --host 0.0.0.0 --port 8000
+# required: use the same token for the bridge, extension and producer
+export BRIDGE_TOKEN="$(openssl rand -hex 32)"
+export BRIDGE_ALLOWED_ORIGINS='https://target-app.example'
+uvicorn bridge:app --host 127.0.0.1 --port 8000
 ```
 
 Check it: `curl localhost:8000/health` → `{"ok": true, ...}`.
@@ -118,13 +119,13 @@ Check it: `curl localhost:8000/health` → `{"ok": true, ...}`.
 
 1. Open `chrome://extensions`, enable **Developer mode**.
 2. **Load unpacked** → select the `extension/` folder.
-3. Point it at your bridge and (optionally) set the token from the extension's
+3. Point it at your bridge and set the token from the extension's
    service-worker console — no token is hardcoded:
 
    ```js
    chrome.storage.local.set({
-     bridgeUrl: 'wss://localhost:8000/ws',   // or ws:// for local http
-     bridgeToken: 'change-me'                // omit if BRIDGE_TOKEN unset
+     bridgeUrl: 'ws://localhost:8000/ws',
+     bridgeToken: '<same token as BRIDGE_TOKEN>'
    });
    ```
 
@@ -136,12 +137,18 @@ Check it: `curl localhost:8000/health` → `{"ok": true, ...}`.
 
 ```bash
 curl -X POST localhost:8000/job/submit \
+  -H "Authorization: Bearer $BRIDGE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"step":"image","prompt":"a red bicycle","cover_url":"https://.../ref.png"}'
 ```
 
 The bridge pushes it to the connected extension, which performs the flow in the
-browser and POSTs the result back. Poll `GET /job/{id}` for status.
+browser and POSTs the result back with a per-job callback token. Poll
+`GET /job/{id}` with the same `Authorization` header for status. The bridge
+rejects job submission and callbacks without their respective tokens.
+
+Check the bridge authentication and callback flow locally with
+`pip install -r server/requirements-dev.txt && python -m pytest server/test_bridge.py`.
 
 ### 4. (Optional) worker-side orchestration
 
@@ -173,8 +180,7 @@ browser-automation-bridge/
 │   ├── manifest.json
 │   ├── background.js   # WS client + CDP click/upload/key handlers
 │   ├── content.js      # in-page flow: find-by-text, typing, upload, result wait
-│   ├── popup.html / popup.js
-│   └── icon16/48/128.png
+│   └── popup.html / popup.js
 ├── server/
 │   ├── bridge.py       # FastAPI + WebSocket hub
 │   └── requirements.txt
